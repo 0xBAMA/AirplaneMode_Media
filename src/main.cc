@@ -1,4 +1,4 @@
-// AirportMode - a minimal dependency pathtracer
+// AirplaneMode - a minimal dependency pathtracer
 
 #include "io.h"
 #include "AMvector.h"
