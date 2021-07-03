@@ -1,9 +1,11 @@
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "includes.h"
+// AirportMode - a minimal dependency pathtracer
+
+#include "io.h"
 #include "AMvector.h"
 
-// AirportMode - a minimal dependency pathtracer
+// Renderer settings
+const int xdim = 1920;
+const int ydim = 1080;
 
 int main(int argc, char const *argv[])
 {
@@ -13,22 +15,12 @@ int main(int argc, char const *argv[])
   cout << " ╩ ╩└─┘┴─┘┴─┘└─┘  ╚╩╝└─┘┴└─┴─┘─┴┘ " << endl;
   cout << endl;
 
-  vec2<float> testvec2_1;
-  vec2<float> testvec2_2(0., 0.);
+  vec2f testvec2_1;  vec2f testvec2_2(0.f, 0.f);
+  vec3f testvec3_1;  vec3f testvec3_2(0.f, 0.f, 0.f);
 
-  vec3<float> testvec3_1;
-  vec3<float> testvec3_2(0., 0., 0.);
-
-
-  /* std::vector<unsigned char> bytes;
-  for(int y = 0; y < ydim; y++)
-  for(int x = 0; x < xdim; x++){
-    bytes.push_back(x ^ y);
-    bytes.push_back(x ^ y);
-    bytes.push_back(x ^ y);
-    bytes.push_back(x ^ y);
-  }
-  stbi_write_png("../xor.png", xdim, ydim, 4, &bytes[0], xdim * 4); */
+  image test(xdim, ydim);
+  test.xor_pattern();
+  test.output("xor.png");
 
   return 0;
 }

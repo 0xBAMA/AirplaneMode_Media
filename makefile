@@ -1,4 +1,5 @@
-FLAGS =  -Wall -O3 -std=c++17
+FLAGS = -O3 -std=c++17
+# FLAGS =  -Wall -O3 -std=c++17
 
 all: exe
 
