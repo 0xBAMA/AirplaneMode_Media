@@ -13,14 +13,16 @@ using std::cerr, std::cin, std::cout, std::endl, std::flush;
 
 class image{
 public:
-  int xdim = 0; int ydim = 0;
+  const int xdim, ydim;
   std::vector<unsigned char> bytes;
 
-  void black_image(int xin, int yin);
-  void xor_pattern(int xin, int yin);
-  void xor_pattern_threaded(int xin, int yin);
+  image(int x, int y) : xdim(x), ydim(y) { }
 
-  void output_image(std::string filename);
+  void black_image();
+  void xor_pattern();
+  void xor_pattern_threaded();
+
+  void output_image(const std::string filename) const;
 };
 
 

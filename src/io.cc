@@ -6,32 +6,29 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
-void image::output_image(std::string filename){
+void image::output_image(const std::string filename) const{
   cout << "writing with filename " << filename << endl;
   stbi_write_png(filename.c_str(), xdim, ydim, 4, &bytes[0], xdim * 4);
 }
 
-void image::black_image(int xin, int yin) {
-  bytes.clear(); bytes.resize(xin*yin*4);
-  xdim = xin; ydim = yin;
-  for(int y = 0; y < yin; y++)
-  for(int x = 0; x < xin; x++)
+void image::black_image() {
+  bytes.clear(); bytes.resize(xdim*ydim*4);
+  for(int y = 0; y < ydim; y++)
+  for(int x = 0; x < xdim; x++)
   for(int n = 0; n < 4; n++)
-    bytes[4*(y*xin+x)+n] = (n == 3) ? 255 : 0;
+    bytes[4*(y*xdim+x)+n] = (n == 3) ? 255 : 0;
 }
 
-void image::xor_pattern(int xin, int yin) {
-  bytes.clear(); bytes.resize(xin*yin*4);
-  xdim = xin; ydim = yin;
-  for(int y = 0; y < yin; y++)
-  for(int x = 0; x < xin; x++)
+void image::xor_pattern() {
+  bytes.clear(); bytes.resize(xdim*ydim*4);
+  for(int y = 0; y < ydim; y++)
+  for(int x = 0; x < xdim; x++)
   for(int n = 0; n < 4; n++)
-    bytes[4*(y*xin+x)+n] = x^y;
+    bytes[4*(y*xdim+x)+n] = x^y;
 }
 
-void image::xor_pattern_threaded(int xin, int yin) {
-  bytes.clear(); bytes.resize(xin*yin*4);
-  xdim = xin; ydim = yin;
+void image::xor_pattern_threaded() {
+  bytes.clear(); bytes.resize(xdim*ydim*4);
   std::thread threads[NUM_THREADS];  // create threads
   for (int id = 0; id < NUM_THREADS; id++){ // do work
     threads[id] = std::thread(
