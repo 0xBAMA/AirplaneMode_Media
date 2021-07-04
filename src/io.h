@@ -4,7 +4,6 @@
 // STL includes
 #include <iostream>
 #include <stdio.h>
-
 // iostream aliases
 using std::cerr, std::cin, std::cout, std::endl, std::flush;
 
@@ -18,29 +17,52 @@ using std::cerr, std::cin, std::cout, std::endl, std::flush;
 #include <string>
 #include <thread>
 
+#define NUM_THREADS 4
+
 class image{
 public:
-  int xdim, ydim;
+  int xdim = 0; int ydim = 0;
   std::vector<unsigned char> bytes;
-
-  image(int xdim_in, int ydim_in) : xdim(xdim_in), ydim(ydim_in) { bytes.resize(xdim*ydim*4); }
-  void output(std::string filename) { stbi_write_png(filename.c_str(), xdim, ydim, 4, &bytes[0], xdim * 4); }
-
-  void xor_pattern() {
-    for(int y = 0; y < ydim; y++)
-    for(int x = 0; x < xdim; x++)
-    for(int n = 0; n < 4; n++)
-      bytes[4*(y*xdim+x)+n] = x ^ y;
-  }
-
-  void xor_threaded() {
-
-    // create threads
-
-    // do work
-
-    // destroy threads and return 
-
-  }
 };
+
+void output_image(std::string filename, image in){
+  cout << "writing with filename " << filename << endl;
+  stbi_write_png(filename.c_str(), in.xdim, in.ydim, 4, &in.bytes[0], in.xdim * 4);
+}
+
+void black_image(int xin, int yin, image in) {
+  in.bytes.clear(); in.bytes.resize(xin*yin*4);
+  in.xdim = xin; in.ydim = yin;
+  for(int y = 0; y < yin; y++)
+  for(int x = 0; x < xin; x++)
+  for(int n = 0; n < 4; n++)
+    in.bytes[4*(y*xin+x)+n] = (n == 3) ? 255 : 0;
+}
+
+void xor_pattern(int xin, int yin, image in) {
+  in.bytes.clear(); in.bytes.resize(xin*yin*4);
+  in.xdim = xin; in.ydim = yin;
+  for(int y = 0; y < yin; y++)
+  for(int x = 0; x < xin; x++)
+  for(int n = 0; n < 4; n++)
+    in.bytes[4*(y*xin+x)+n] = x^y;
+}
+
+void xor_pattern_threaded(int xin, int yin, image in) {
+  in.bytes.clear(); in.bytes.resize(xin*yin*4);
+  in.xdim = xin; in.ydim = yin;
+  std::thread threads[NUM_THREADS];  // create threads
+  for (int id = 0; id < NUM_THREADS; id++){ // do work
+    threads[id] = std::thread(
+      [&in, xin, yin, id]() {
+        for (int y = id; y < yin; y+=NUM_THREADS)
+        for (int x = 0; x < xin; x++)
+        for (int channel = 0; channel < 4; channel++)
+          in.bytes[4*(y*xin+x)+channel] = x^y;
+      }
+    );
+  }
+  for (int id = 0; id < NUM_THREADS; id++)
+    threads[id].join();  // destroy threads and return
+}
 #endif
