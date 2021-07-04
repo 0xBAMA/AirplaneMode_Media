@@ -18,7 +18,6 @@ int main(int argc, char const *argv[])
   vec2f testvec2_1;  vec2f testvec2_2(0.f, 0.f);
   vec3f testvec3_1;  vec3f testvec3_2(0.f, 0.f, 0.f);
 
-
   image test1;
   test1.black_image(xdim, ydim);
   test1.output_image("black.png");
