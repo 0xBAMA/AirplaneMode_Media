@@ -1,6 +1,7 @@
 #ifndef VECTOR
 #define VECTOR
 
+#define base_type double // easiest way to swap this I think is to have it here
 
 template <class T>
 class vec2{
@@ -12,13 +13,21 @@ public:
 
   //  +,- operators
   const vec2<T> operator+(const vec2<T>& other) const { return vec2(this->values[0]+other.values[0], this->values[1]+other.values[1]); }
+  const vec2<T>& operator+=(const vec2<T>& other) { this->values[0]+=other.values[0], this->values[1]+=other.values[1]; }
+
   const vec2<T> operator-(const vec2<T>& other) const { return vec2(this->values[0]-other.values[0], this->values[1]-other.values[1]); }
+  const vec2<T>& operator-=(const vec2<T>& other) { this->values[0]-=other.values[0], this->values[1]-=other.values[1]; }
 
   //  multiplication/division by a scalar of the same type - scale each element
   const vec2<T> operator*(const T& scalar) const { return vec2(this->values[0]*scalar, this->values[1]*scalar); }
+  const vec2<T>& operator*=(const T& scalar) { this->values[0]*=scalar, this->values[1]*=scalar; return *this; }
 
-  //  multiplication/division by a vector of the same type - elementwise multiply (hadamard product)
+  const vec2<T> operator/(const T& scalar) const { return vec2(this->values[0]/scalar, this->values[1]/scalar); }
+  const vec2<T>& operator/=(const T& scalar) { this->values[0]/=scalar, this->values[1]/=scalar; return *this; }
+
+  //  multiplication by a vector of the same type - elementwise multiply (hadamard product)
   const vec2<T> operator*(const vec2<T>& other) const { return vec2(this->values[0]*other.values[0], this->values[1]*other.values[1]); }
+  const vec2<T>& operator*=(const vec2<T>& other) { this->values[0]*=other.values[0], this->values[1]*=other.values[1]; return *this; }
 };
 
 template <class T>
@@ -40,7 +49,6 @@ using vec2d = vec2<double>;
 // --------
 // --------
 
-
 template <class T>
 class vec3{
 public:
@@ -51,13 +59,21 @@ public:
 
   //  +,- operators
   const vec3<T> operator+(const vec3<T>& other) const { return vec3(this->values[0]+other.values[0], this->values[1]+other.values[1], this->values[2]+other.values[2]); }
+  const vec3<T>& operator+=(const vec3<T>& other) { this->values[0]+=other.values[0], this->values[1]+=other.values[1], this->values[2]+=other.values[2]; return *this; }
+
   const vec3<T> operator-(const vec3<T>& other) const { return vec3(this->values[0]-other.values[0], this->values[1]-other.values[1], this->values[2]-other.values[2]); }
+  const vec3<T>& operator-=(const vec3<T>& other) { this->values[0]-=other.values[0], this->values[1]-=other.values[1], this->values[2]-=other.values[2]; return *this; }
 
   //  multiplication/division by a scalar of the same type - scale each element
   const vec3<T> operator*(const T& scalar) const { return vec3(this->values[0]*scalar, this->values[1]*scalar, this->values[2]*scalar); }
+  const vec3<T>& operator*=(const T& scalar) { this->values[0]*=scalar, this->values[1]*=scalar, this->values[2]*=scalar; return *this; }
 
-  //  multiplication/division by a vector of the same type - elementwise multiply (hadamard product)
+  const vec3<T> operator/(const T& scalar) const { return vec3(this->values[0]/scalar, this->values[1]/scalar, this->values[2]/scalar); }
+  const vec3<T>& operator/=(const T& scalar) { this->values[0]/=scalar, this->values[1]/=scalar, this->values[2]/=scalar; return *this; }
+
+  //  multiplication by a vector of the same type - elementwise multiply (hadamard product)
   const vec3<T> operator*(const vec3<T>& other) const { return vec3(this->values[0]*other.values[0], this->values[1]*other.values[1], this->values[2]*other.values[2]); }
+  const vec3<T>& operator*=(const vec3<T>& other) { this->values[0]*=other.values[0], this->values[1]*=other.values[1], this->values[2]*=other.values[2]; return *this; }
 };
 
 template <class T>
@@ -81,7 +97,13 @@ const vec3<T> cross(vec3<T> a, vec3<T> b) {
   return product;
 }
 
+// default types
+
 using vec3f = vec3<float>;
 using vec3d = vec3<double>;
+using v2 = vec2<base_type>;
+using v3 = vec3<base_type>;
+
+using vec = v3;
 
 #endif

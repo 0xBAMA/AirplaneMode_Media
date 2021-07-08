@@ -9,22 +9,24 @@ using std::cerr, std::cin, std::cout, std::endl, std::flush;
 #include <string>
 #include <thread>
 
-#define NUM_THREADS 4
+#define NUM_THREADS 8
+#define NUM_SAMPLES 100
 
 class image{
 public:
-  const int xdim, ydim;
-  std::vector<unsigned char> bytes;
+  image(int x, int y, int s=NUM_THREADS) : xdim(x), ydim(y), samplecount(s) { }
 
-  image(int x, int y) : xdim(x), ydim(y) { }
+  const int xdim, ydim;
+  int samplecount;
+  std::vector<unsigned char> bytes;
 
   void black_image();
   void xor_pattern();
   void xor_pattern_threaded();
 
+  void render_scene();
+
   void output_image(const std::string filename) const;
 };
-
-
 
 #endif

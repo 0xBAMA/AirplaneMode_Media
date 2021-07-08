@@ -1,4 +1,5 @@
 #include "io.h"
+#include "renderer.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -42,4 +43,45 @@ void image::xor_pattern_threaded() {
   }
   for (int id = 0; id < NUM_THREADS; id++)
     threads[id].join();  // destroy threads and return
+}
+
+void image::render_scene(){
+  camera c;
+  scene s;
+
+
+  bytes.clear(); bytes.resize(xdim*ydim*4);  // clear
+  std::thread threads[NUM_THREADS];  // create threads
+  for (int id = 0; id < NUM_THREADS; id++){ // do work
+    threads[id] = std::thread(
+      [this, id]() {
+        for (int y = id; y < this->ydim; y+=NUM_THREADS)
+        for (int x =  0; x < this->xdim; x++){
+
+          vec running_color;
+
+          for (int s = 0; s < samplecount; s++) {
+            // work per sample
+          }
+
+          running_color /= base_type(samplecount);
+
+          // once you have an averaged out color value, write four floats,
+          //  representing your RGBA values:
+          // this->bytes[4*(y*this->xdim+x)+ 0] is the location of R
+          // this->bytes[4*(y*this->xdim+x)+ 4] is the location of G
+          // this->bytes[4*(y*this->xdim+x)+ 8] is the location of B
+          // this->bytes[4*(y*this->xdim+x)+12] is the location of A
+
+          // ...
+
+        }
+      }
+    );
+  }
+  for (int id = 0; id < NUM_THREADS; id++)
+    threads[id].join();  // destroy threads and return
+
+
+
 }
