@@ -18,13 +18,13 @@
     seed = seed ^ (seed >> 15);
     return seed;
   }
-  base_type rand_fp(){ // random value 0-1
+  base_type random_float01(){ // random value 0-1
     return float(wang_hash()) / 4294967296.0;
   }
 
 #elif RAND_METHOD == 1
 
-  base_type rand_fp(){ // random value 0-1
+  base_type random_float01(){ // random value 0-1
     std::default_random_engine generator; // another generation method
     std::uniform_real_distribution<base_type> distribution(0., 1.);
     return distribution(generator);
@@ -33,8 +33,8 @@
 #endif
 
 vec3 random_unit_vector(){ // random unit vector (unit length)
-  base_type z = rand_fp() * 2.0f - 1.0f;
-  base_type a = rand_fp() * 2. * M_PI;
+  base_type z = random_float01() * 2.0f - 1.0f;
+  base_type a = random_float01() * 2. * M_PI;
   base_type r = sqrt(1.0f - z * z);
   base_type x = r * cos(a);
   base_type y = r * sin(a);

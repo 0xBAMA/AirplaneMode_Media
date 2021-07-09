@@ -17,7 +17,7 @@ class sphere{
 
 class triangle{
 
-  // three points in space
+  // three points in space - winding order indicates normal
   vec3 points[3];
 
 //from Wikipedia

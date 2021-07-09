@@ -64,12 +64,23 @@ void image::render_scene(int samplecount){
           // compute the average
           running_color /= base_type(samplecount);
 
-          // sRGB (gamma), tonemapping
+          running_color.values[0] = sin(0.2*float(x));
+          running_color.values[1] = sin(0.1*float(y));
+          running_color.values[2] = sin(0.5*float(x*y));
 
+          // sRGB (gamma)
+          for (int channel; channel < 3; channel++)
+            running_color.values[channel] = pow(running_color.values[channel], 1./r.gamma);
 
-          // store 8 bit values, quantized to the range 0-255
+          // tonemapping
+          running_color = tonemap(running_color);
+
+          // map to the desired range (0-255)
+          running_color *= 255.; // 0-1 mapped to 0-255
+
+          // store quantized 8 bit values
           for (int channel = 0; channel < 4; channel++)
-             this->bytes[4*(y*this->xdim+x)+channel] = ((channel < 3) ? running_color.values[channel] : 255);
+             this->bytes[4*(y*this->xdim+x)+channel] = static_cast<unsigned char>((channel < 3) ? running_color.values[channel] : 255);
         }
       }
     );

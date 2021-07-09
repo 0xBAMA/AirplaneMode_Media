@@ -1,6 +1,7 @@
 #include "renderer.h"
+#include <algorithm>
 
-void camera::lookat(){
+void camera::lookat( /*look up params*/ ){
 
 }
 
@@ -30,4 +31,20 @@ vec3 renderer::get_color_sample(const int x, const int y) const{
     // end loop over bounces
 
     return sample_value;
+  }
+
+
+vec3 tonemap(vec3 v){
+  v *= 0.6f;
+  base_type a = 2.51f;
+  base_type b = 0.03f;
+  base_type c = 2.43f;
+  base_type d = 0.59f;
+  base_type e = 0.14f;
+
+  vec3 result = (v*(a*v+vec3(b)))/(v*(c*v+vec3(d))+e);
+  result.values[0] = std::clamp(result.values[0], 0., 1.);
+  result.values[1] = std::clamp(result.values[1], 0., 1.);
+  result.values[2] = std::clamp(result.values[2], 0., 1.);
+  return result;
 }
