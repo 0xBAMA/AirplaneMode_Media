@@ -52,16 +52,13 @@ void image::render_scene(int samplecount){
   std::thread threads[NUM_THREADS];  // create thread pool
   for (int id = 0; id < NUM_THREADS; id++){ // do work
     threads[id] = std::thread(
-      [this, id, r, samplecount]() {
+      [this, id, r, samplecount]() { // lambda for one thread's work
         for (int y = id; y < this->ydim; y+=NUM_THREADS)
-        for (int x =  0; x < this->xdim; x++){
+        for (int x =  0; x < this->xdim; x++) {
           vec3 running_color; // initially zero, averages sample data
-          for (int s = 0; s < samplecount; s++) {// work per sample
-            // composite sample result with running_color
-            running_color += r.get_sample(x,y);
-          }
-          // averaging the value of the collected samples
-          running_color /= base_type(samplecount);
+          for (int s = 0; s < samplecount; s++)
+            running_color += r.get_sample(x,y); // accumulate sample results
+          running_color /= base_type(samplecount); // compute the average
 
           // sRGB (gamma), tonemapping
 
@@ -73,7 +70,6 @@ void image::render_scene(int samplecount){
           //    this->bytes[4*(y*this->xdim+x)+3] is the location of A (0-255)
 
           // ...
-
         }
       }
     );
