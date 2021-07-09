@@ -2,30 +2,42 @@
 #include "primitives.h"
 #include "random.h"
 
+#define MAX_BOUNCES 15
 
-// generates view vectors
-class camera{
-  vec sample(); // get a view vector
+class camera{ // generates view vectors
+public:
+  camera() { }
 
-  // DoF params
-  float focal_plane_distance;
-  float position_jitter_amnt;
-  // maybe some sort of autofocus? like some kind of idea
-  // for setting DoF parameters via a scene depth check
+  // get a view vector, generated from basis vectors
+  vec3 sample(int x, int y) const; // x and y are pixel indices
 
-
-  // lookat - create x+y offset vectors (basisx, basisy) +
-  // the vector looking forwards (basisz)
-
+  // lookat function sets basis vectors
   // position
-  // direction
+  // direction - basis vectors
 
+  // DoF autofocus? auto generate params from scene?
+  base_type focal_plane_distance;
+  base_type position_jitter_amnt;
+  base_type FoV; // field of view
 };
 
 
-// holds scene geometry
-class scene{
+class scene{ // holds scene geometry
+public:
+  scene() { }
 
+  // manipulation of the scene
   // nearest intersection query
+};
 
+
+class renderer{ // wrapper class, used in the render loop
+public:
+  renderer() { }
+
+  camera c; // representing viewer
+  scene s; // representing objects under view
+
+  // get a colored sample from a set of pixel coords
+  vec3 get_sample(int x, int y) const;
 };

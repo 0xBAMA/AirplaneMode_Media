@@ -10,7 +10,7 @@
 class sphere{
 
   // center position + radius
-  vec center;
+  vec3 center;
   base_type radius;
 
 };
@@ -18,7 +18,7 @@ class sphere{
 class triangle{
 
   // three points in space
-  vec points[3];
+  vec3 points[3];
 
 //from Wikipedia
       // bool RayIntersectsTriangle(Vector3D rayOrigin,
