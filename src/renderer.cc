@@ -1,6 +1,5 @@
 #include "renderer.h"
 
-
 void camera::lookat(){
 
 }
@@ -11,7 +10,7 @@ vec3 camera::sample(const int x, const int y) const{
   return vec3(0.,0.,0.);
 }
 
-vec3 renderer::get_sample(const int x, const int y) const{
+vec3 renderer::get_color_sample(const int x, const int y) const{
     vec3 sample_value = vec3(0.,0.,0.);
 
     // throughput's initial value of 1. in each channel indicates that it is initially

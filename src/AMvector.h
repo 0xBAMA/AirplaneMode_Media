@@ -1,7 +1,11 @@
 #ifndef VECTOR
 #define VECTOR
 
-#define base_type double // easiest way to swap this I think is to have it here
+// easiest way to swap type behavior
+#define base_type double
+
+// pi define
+#define M_PI 3.1415926535897932384626433832795
 
 template <class T>
 class vector2{

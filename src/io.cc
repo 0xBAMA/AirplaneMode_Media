@@ -56,20 +56,20 @@ void image::render_scene(int samplecount){
         for (int y = id; y < this->ydim; y+=NUM_THREADS)
         for (int x =  0; x < this->xdim; x++) {
           vec3 running_color; // initially zero, averages sample data
+
+          // accumulate sample results
           for (int s = 0; s < samplecount; s++)
-            running_color += r.get_sample(x,y); // accumulate sample results
-          running_color /= base_type(samplecount); // compute the average
+            running_color += r.get_color_sample(x,y);
+
+          // compute the average
+          running_color /= base_type(samplecount);
 
           // sRGB (gamma), tonemapping
 
-          // once you have a final color value as four floats representing
-          //  your RGBA values - need to write unsigned char values:
-          //    this->bytes[4*(y*this->xdim+x)+0] is the location of R (0-255)
-          //    this->bytes[4*(y*this->xdim+x)+1] is the location of G (0-255)
-          //    this->bytes[4*(y*this->xdim+x)+2] is the location of B (0-255)
-          //    this->bytes[4*(y*this->xdim+x)+3] is the location of A (0-255)
 
-          // ...
+          // store 8 bit values, quantized to the range 0-255
+          for (int channel = 0; channel < 4; channel++)
+             this->bytes[4*(y*this->xdim+x)+channel] = ((channel < 3) ? running_color.values[channel] : 255);
         }
       }
     );

@@ -11,10 +11,10 @@ public:
   void lookat(); // sets basis vectors
   vec3 sample(const int x, const int y) const; // x and y are pixel indices
 
-  // position
-  // direction - represented as a set of vectors which define x,y, and z for the frustum
+  vec3 position; // location of viewer
+  vec3 bx,by,bz; // basis vectors for camera calcs
 
-  // DoF autofocus? auto generate params from scene? Maybe later
+  // DoF autofocus - autogen DoF params from scene? Maybe a project for later
   base_type focal_plane_distance;
   base_type position_jitter_amnt;
   base_type FoV; // field of view
@@ -24,8 +24,8 @@ public:
 class scene{ // holds scene geometry
 public:
   scene() { }
-
-  // manipulation of the scene
+  // random generation of scene geometry
+  // manipulation of the scene geometry
   // nearest intersection query
 };
 
@@ -37,6 +37,6 @@ public:
   camera c; // representing viewer
   scene s; // representing objects under view
 
-  // get a colored sample from a set of pixel coords
-  vec3 get_sample(const int x, const int y) const;
+  // get a pathtracing sample from a set of pixel coords
+  vec3 get_color_sample(const int x, const int y) const;
 };
