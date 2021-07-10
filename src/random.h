@@ -34,7 +34,7 @@
 
 vec3 random_unit_vector(){ // random unit vector (unit length)
   base_type z = random_float01() * 2.0f - 1.0f;
-  base_type a = random_float01() * 2. * M_PI;
+  base_type a = random_float01() * 2. * PI;
   base_type r = sqrt(1.0f - z * z);
   base_type x = r * cos(a);
   base_type y = r * sin(a);

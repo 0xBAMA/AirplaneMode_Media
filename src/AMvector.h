@@ -1,11 +1,14 @@
 #ifndef VECTOR
 #define VECTOR
 
+#include <cmath>
+
+
 // easiest way to swap type behavior
 #define base_type double
 
 // pi define
-#define M_PI 3.1415926535897932384626433832795
+#define PI 3.1415926535897932384626433832795
 
 template <class T>
 class vector2{
@@ -52,7 +55,7 @@ template <class T>
 const vector2<T> operator/(const T& scalar, const vector2<T>& vec) { return vector2<T>(vec.values[0]/scalar, vec.values[1]/scalar); }
 
 template <class T>
-T dot(vector2<T> v1, vector2<T> v2) { return v1[0]*v2[0] + v1[1]*v2[1]; }
+T dot(vector2<T> v1, vector2<T> v2) { return v1.values[0]*v2.values[0] + v1.values[1]*v2.values[1]; }
 
 template <class T> // squared length
 T len2(vector2<T> v) { return dot(v,v); }
@@ -112,7 +115,7 @@ template <class T>
 const vector3<T> operator/(const T& scalar, const vector3<T>& vec) { return vector3<T>(vec.values[0]/scalar, vec.values[1]/scalar, vec.values[2]/scalar); }
 
 template <class T>
-const T dot(vector3<T> v1, vector3<T> v2) { return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]; }
+const T dot(vector3<T> v1, vector3<T> v2) { return v1.values[0]*v2.values[0] + v1.values[1]*v2.values[1] + v1.values[2]*v2.values[2]; }
 
 template <class T> // squared length
 const T len2(vector3<T> v) { return dot(v,v); }

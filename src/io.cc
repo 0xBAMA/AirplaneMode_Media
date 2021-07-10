@@ -48,6 +48,13 @@ void image::xor_pattern_threaded() {
 void image::render_scene(int samplecount){
   renderer r;  // configure render params (DoF, view)
 
+  // set camera params (from, at, up)
+  r.c.lookat(vec3(2.), vec3(0.), vec3(0.,1.,0.));
+  r.c.resolution(xdim, ydim);
+
+  // populate scene geometry
+  r.s.populate();
+
   bytes.clear(); bytes.resize(xdim*ydim*4);  // clear image
   std::thread threads[NUM_THREADS];  // create thread pool
   for (int id = 0; id < NUM_THREADS; id++){ // do work
@@ -57,28 +64,19 @@ void image::render_scene(int samplecount){
         for (int x =  0; x < this->xdim; x++) {
           vec3 running_color; // initially zero, averages sample data
 
-          // accumulate sample results
-          for (int s = 0; s < samplecount; s++)
+          for (int s = 0; s < samplecount; s++)   // get sample data
             running_color += r.get_color_sample(x,y);
 
-          // compute the average
-          running_color /= base_type(samplecount);
+          running_color /= base_type(samplecount);  // sample averaging
 
-          running_color.values[0] = sin(0.2*float(x));
-          running_color.values[1] = sin(0.1*float(y));
-          running_color.values[2] = sin(0.5*float(x*y));
+          running_color = tonemap(running_color);     // tonemapping (seems best here?)
 
-          // sRGB (gamma)
-          for (int channel; channel < 3; channel++)
+          for (int channel = 0; channel < 3; channel++) // gamma correction
             running_color.values[channel] = pow(running_color.values[channel], 1./r.gamma);
 
-          // tonemapping
-          running_color = tonemap(running_color);
-
-          // map to the desired range (0-255)
           running_color *= 255.; // 0-1 mapped to 0-255
 
-          // store quantized 8 bit values
+          // quantize 8 bit values and write
           for (int channel = 0; channel < 4; channel++)
              this->bytes[4*(y*this->xdim+x)+channel] = static_cast<unsigned char>((channel < 3) ? running_color.values[channel] : 255);
         }
