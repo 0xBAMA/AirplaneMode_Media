@@ -2,7 +2,7 @@
 #define VECTOR
 
 #include <cmath>
-
+#include <random>
 
 // easiest way to swap type behavior
 #define base_type double
@@ -144,5 +144,71 @@ using vector3d = vector3<double>;
 
 using vec2 = vector2<base_type>;
 using vec3 = vector3<base_type>;
+
+// ray representation (origin+direction)
+struct ray{
+  vec3 origin;
+  vec3 direction;
+};
+
+// constants
+const base_type EPSILON = 0.0000001;
+const base_type DMAX    = 99999999.;
+
+// represents a ray hit and the associated information
+struct hitrecord {                // hit record
+    vec3 position;               // position
+    vec3 normal;                // normal
+    base_type dtransit = DMAX; // how far the ray traveled
+    int material = 0;         // material (indexed)
+    vec2 uv;                 // used for triangles, barycentric coords
+};
+
+
+// Random Vector Utilities
+
+// Wang hash - Thomas Wang
+// https://burtleburtle.net/bob/hash/integer.html
+static uint wang_hash(){
+  thread_local uint seed = 0;
+  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
+  seed *= uint(9);
+  seed = seed ^ (seed >> 4);
+  seed *= uint(0x27d4eb2d);
+  seed = seed ^ (seed >> 15);
+  return seed;
+}
+static base_type randf() { // random value 0-1
+  return base_type(wang_hash()) / 4294967296.0;
+}
+
+// maybe look at this again later
+// // std::random
+//   static base_type randf() { // random value 0-1
+//     static std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
+//     std::uniform_real_distribution<base_type> distribution(0., 1.);
+//     return distribution(generator);
+//
+// alternatively - I think this is more correct
+//     static std::random_device rd;  //Will be used to obtain a seed for the random number engine
+//     static std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+//     std::uniform_real_distribution<> dis(0.0, 1.0);
+//     return dis(gen);
+//   }
+
+
+static vec3 random_unit_vector(){ // random direction vector (unit length)
+  base_type z = randf() * 2.0f - 1.0f;
+  base_type a = randf() * 2. * PI;
+  base_type r = sqrt(1.0f - z * z);
+  base_type x = r * cos(a);
+  base_type y = r * sin(a);
+  return vec3(x, y, z);
+}
+
+static vec3 random_in_unit_disk(){ // random in unit disk (xy plane)
+  vec3 val = random_unit_vector();
+  return vec3(val.values[0], val.values[1], 0.);
+}
 
 #endif

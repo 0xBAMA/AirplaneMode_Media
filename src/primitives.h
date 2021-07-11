@@ -1,61 +1,36 @@
+#ifndef PRIMITIVES_H
+#define PRIMITIVES_H
+
 #include "AMvector.h"
-// base type is float, double, as desired
-// vec is the vec3 of the defined base type - see AMvector.h
 
-// hit record
-  //
+class primitive { // parent class for primitives
+public:
+  virtual hitrecord intersect(ray r) const = 0; // pure virtual, base undefined
+};
 
-
-// primitives
-class sphere{
-
-  // center position + radius
+// -----
+class sphere : public primitive {
+public:
+  sphere(vec3 c, base_type r, int m) : center(c), radius(r), material(m) { }
+  hitrecord intersect(ray r) const override;
+private:  // geometry parameters
   vec3 center;
   base_type radius;
-
+  int material;
 };
 
-class triangle{
-
-  // three points in space - winding order indicates normal
+// -----
+class triangle : public primitive {
+public:
+  triangle(vec3 p0, vec3 p1, vec3 p2, int m) : points{p0, p1, p2}, material(m) { }
+  hitrecord intersect(ray r) const override;
+private:  // geometry parameters
   vec3 points[3];
-
-//from Wikipedia
-      // bool RayIntersectsTriangle(Vector3D rayOrigin,
-      // Vector3D rayVector,
-      // Triangle* inTriangle,
-      // Vector3D& outIntersectionPoint)
-      // {
-      // const float EPSILON = 0.0000001;
-      // Vector3D vertex0 = inTriangle->vertex0;
-      // Vector3D vertex1 = inTriangle->vertex1;
-      // Vector3D vertex2 = inTriangle->vertex2;
-      // Vector3D edge1, edge2, h, s, q;
-      // float a,f,u,v;
-      // edge1 = vertex1 - vertex0;
-      // edge2 = vertex2 - vertex0;
-      // h = rayVector.crossProduct(edge2);
-      // a = edge1.dotProduct(h);
-      // if (a > -EPSILON && a < EPSILON)
-      // return false;    // This ray is parallel to this triangle.
-      // f = 1.0/a;
-      // s = rayOrigin - vertex0;
-      // u = f * s.dotProduct(h);
-      // if (u < 0.0 || u > 1.0)
-      // return false;
-      // q = s.crossProduct(edge1);
-      // v = f * rayVector.dotProduct(q);
-      // if (v < 0.0 || u + v > 1.0)
-      // return false;
-      // // At this stage we can compute t to find out where the intersection point is on the line.
-      // float t = f * edge2.dotProduct(q);
-      // if (t > EPSILON) // ray intersection
-      // {
-      // outIntersectionPoint = rayOrigin + rayVector * t;
-      // return true;
-      // }
-      // else // This means that there is a line intersection but not a ray intersection.
-      // return false;
-      // }
-
+  int material;
 };
+
+// TODO:
+  // plane
+  // aabb or obb
+
+#endif

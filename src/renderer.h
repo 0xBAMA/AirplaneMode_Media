@@ -1,26 +1,16 @@
 #include "AMvector.h"
 #include "primitives.h"
-#include "random.h"
+#include <memory>
 
-#define MAX_BOUNCES 15
-
-struct ray{
-  vec3 origin;
-  vec3 direction;
-};
+#define MAX_BOUNCES 1
 
 class camera{ // generates view vectors from a set of basis vectors
 public:
   camera() { }
 
-  // sets basis vectors for sample calcs
-  void lookat(const vec3 from, const vec3 at, const vec3 up);
-
-  // sets xdim and ydim
-  void resolution(const int x, const int y) { xdim = x, ydim = y; }
-
-  // x and y are pixel indices
-  ray sample(const int x, const int y) const;
+  void lookat(const vec3 from, const vec3 at, const vec3 up); // sets basis vectors for sample calcs
+  void resolution(const int x, const int y) { xdim = x, ydim = y; } // sets xdim and ydim
+  ray sample(const int x, const int y) const; // x and y are pixel indices
 
   vec3 position;  // location of viewer
   vec3 bx,by,bz;  // basis vectors for camera calcs
@@ -29,7 +19,7 @@ public:
   // DoF autofocus - autogen DoF params from scene? Maybe a project for later
   base_type focal_plane_distance;
   base_type position_jitter_amnt;
-  base_type FoV; // field of view
+  base_type FoV = 1.; // field of view
 };
 
 
@@ -37,17 +27,15 @@ class scene{ // holds scene geometry
 public:
   scene() { }
 
-  // random generation of scene geometry
-  void populate();
+  hitrecord ray_query(ray r) const; // nearest intersection query
 
-  // manipulation of the scene geometry
-  void clear();
+  void populate(); // random generation of scene geometry
+  void clear(); // manipulation of the scene geometry
 
-  // nearest intersection query
-  bool intersection_query();
+  std::vector<std::shared_ptr<primitive>> contents; // list of primitives making up the scene
+  // std::vector<material> materials; // list of materials present in the scene
 
   // eventually bvh stuff
-    // ...
 };
 
 
