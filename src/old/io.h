@@ -9,7 +9,6 @@ using std::cerr, std::cin, std::cout, std::endl, std::flush;
 #include <thread>
 #include "AMvector.h"
 
-#define NUM_THREADS 8
 
 class image{
 public:

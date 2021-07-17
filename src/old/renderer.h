@@ -1,8 +1,13 @@
 #include "AMvector.h"
 #include "primitives.h"
+
 #include <memory>
 
+#define X_IMAGE_DIM 1920/4
+#define Y_IMAGE_DIM 1080/4
 #define MAX_BOUNCES 1
+#define NUM_SAMPLES 1
+#define NUM_THREADS 8
 
 class camera{ // generates view vectors from a set of basis vectors
 public:

@@ -1,14 +1,5 @@
 #include "primitives.h"
 
-// // represents a ray hit and the associated information
-// struct hitrecord {          // hit record
-//     bool hit = false;      // did it hit anything?
-//     vec3 position;        // position
-//     vec3 normal;         // normal
-//     base_type dtransit; // how far the ray traveled
-//     int material = 0;  // material (indexed)
-// };
-
 hitrecord sphere::intersect(ray r) const{
   hitrecord h;   h.material = material;   h.dtransit = DMAX;
 
@@ -36,6 +27,7 @@ hitrecord sphere::intersect(ray r) const{
 
     // get h.normal from the displacement from the center point
     h.normal = normalize(h.position - center);
+    h.front = true;
   }
   return h;
 }
@@ -48,10 +40,9 @@ hitrecord triangle::intersect(ray r) const{
   const vec3 pvec = cross(r.direction, edge2);
   const base_type det = dot(edge1, pvec);
 
+  static const base_type eps = std::numeric_limits<base_type>::epsilon();
 
-  static const base_type Epsilon = std::numeric_limits<base_type>::epsilon();
-
-  if (det > -Epsilon && det < Epsilon)
+  if (det > -eps && det < eps)
     return hit;
 
   const base_type invDet = 1.0f / det;
@@ -65,9 +56,12 @@ hitrecord triangle::intersect(ray r) const{
   if (hit.uv.values[1] < 0.0f || hit.uv.values[0] + hit.uv.values[1] > 1.0f)
     return hit;
 
-  hit.dtransit = dot(edge2, qvec) * invDet; // dtransit
+  hit.dtransit = dot(edge2, qvec) * invDet; // distance term to hit
   hit.position = points[0] + hit.uv.values[0] * edge2 + hit.uv.values[1] * edge1;
   hit.normal = cross(edge1, edge2);
+
+  // determine front or back
+  hit.front = dot(hit.normal, r.direction) > 0 ? true : false;
 
   return hit;
 }

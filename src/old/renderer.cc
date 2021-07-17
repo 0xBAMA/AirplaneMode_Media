@@ -1,5 +1,4 @@
 #include "renderer.h"
-#include "primitives.h"
 
 #include <iostream>
 #include <algorithm>
@@ -22,8 +21,8 @@ ray camera::sample( const int x, const int y ) const{
   r.origin = position;
 
   // remap [0, dimension] indexing to [-dimension/2., dimension/2.]
-  base_type lx = (base_type(x + rbt()) - base_type(xdim/2.)) / base_type(xdim/2.);
-  base_type ly = (base_type(y + rbt()) - base_type(ydim/2.)) / base_type(ydim/2.);
+  base_type lx = (base_type(x + rng()) - base_type(xdim/2.)) / base_type(xdim/2.);
+  base_type ly = (base_type(y + rng()) - base_type(ydim/2.)) / base_type(ydim/2.);
 
   base_type aspect_ratio = float(xdim) / float(ydim); // need to calculate pixel offset
   r.direction = normalize(aspect_ratio*lx*bx + ly*by + (1./FoV)*bz); // construct from basis
@@ -34,9 +33,9 @@ ray camera::sample( const int x, const int y ) const{
 
 void scene::populate(){
   // randomly generate some primitives to test against
-  for (int i = 0; i < 1500; i++){
-    contents.push_back(std::make_shared<sphere>(2.*vec3(rbt()-0.5, rbt()-0.5, rbt()-0.5), 0.2*rbt(), 0));
-    contents.push_back(std::make_shared<triangle>(2.*vec3(rbt()-0.5,rbt()-0.5,rbt()-0.5), 2.*vec3(rbt()-0.5,rbt()-0.5,rbt()-0.5), 2.*vec3(rbt()-0.5,rbt()-0.5,rbt()-0.5), 1));
+  for (int i = 0; i < 600; i++){
+    contents.push_back(std::make_shared<sphere>(2.*vec3(rng()-0.5, rng()-0.5, rng()-0.5), 0.1*rng(), 0));
+    contents.push_back(std::make_shared<triangle>(2.*vec3(rng()-0.5,rng()-0.5,rng()-0.5), 2.*vec3(rng()-0.5,rng()-0.5,rng()-0.5), 2.*vec3(rng()-0.5,rng()-0.5,rng()-0.5), 1));
   }
 }
 
@@ -72,11 +71,12 @@ vec3 renderer::get_color_sample( const int x, const int y ) const{
     // get a new hit location (scene query)
     hitrecord h = s.ray_query(ray{ro, rd});
 
-    if(h.dtransit < DMAX)
+    if(h.dtransit < DMAX && h.material == 0)
       sample_value = vec3(h.normal*0.5 + vec3(0.5)) * (2./h.dtransit);
 
-    // if(h.dtransit < DMAX && h.material == 1)
-      // sample_value = vec3(h.uv.values[0],h.uv.values[1],1-(h.uv.values[0]+h.uv.values[1]));
+    if(h.dtransit < DMAX && h.material == 1)
+      sample_value = (h.front ? vec3(0.618) : vec3(0.1618))*(2./h.dtransit);
+      // sample_value = vec3(h.uv.values[0],h.uv.values[1],1-(h.uv.values[0]+h.uv.values[1])) * (2./h.dtransit);
 
     // ray origin becomes new hit location
 
