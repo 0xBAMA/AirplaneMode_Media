@@ -5,11 +5,6 @@
 #include <random>
 #include <chrono>
 
-// easiest way to swap type behavior
-#define base_type double
-
-// pi define
-#define PI 3.1415926535897932384626433832795
 
 template <class T>
 class vector2{
@@ -134,70 +129,6 @@ const vector3<T> cross(vector3<T> a, vector3<T> b) {
   product.values[1] = -(a.values[0] * b.values[2] - a.values[2] * b.values[0]);
   product.values[2] =   a.values[0] * b.values[1] - a.values[1] * b.values[0];
   return product;
-}
-
-// default types, using base_type above
-using vec2 = vector2<base_type>;
-using vec3 = vector3<base_type>;
-
-// ray representation (origin+direction)
-struct ray{
-  vec3 origin;
-  vec3 direction;
-};
-
-// constants
-const base_type EPSILON = 0.0000001;
-// std::numeric_limits<base_type>::epsilon();
-const base_type DMAX    = 99999999.;
-
-
-// represents a ray hit and the associated information
-struct hitrecord {                // hit record
-    vec3 position;               // position
-    vec3 normal;                // normal
-    base_type dtransit = DMAX; // how far the ray traveled
-    int material_index = 0;         // material (indexed)
-    vec2 uv;                 // used for triangles, barycentric coords
-    bool front;
-};
-
-
-// Random Vector Utilities
-
-// Wang hash - Thomas Wang
-// https://burtleburtle.net/bob/hash/integer.html
-static uint wang_hash(){
-  static uint seed = 0;
-  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
-  seed *= uint(9);
-  seed = seed ^ (seed >> 4);
-  seed *= uint(0x27d4eb2d);
-  seed = seed ^ (seed >> 15);
-  return seed;
-}
-// static base_type rng() { // random value 0-1
-//   return base_type(wang_hash()) / 4294967296.0;
-// }
-
-static base_type rng(){ // this will be handled differently
-  thread_local std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
-  std::uniform_real_distribution<base_type> distribution(0., 1.);
-  return distribution(generator);
-}
-
-static vec3 random_unit_vector(){ // random direction vector (unit length)
-  base_type z = rng() * 2.0f - 1.0f;
-  base_type a = rng() * 2. * PI;
-  base_type r = sqrt(1.0f - z * z);
-  base_type x = r * cos(a);
-  base_type y = r * sin(a);
-  return vec3(x, y, z);
-}
-
-static vec3 random_in_unit_disk(){ // random in unit disk (xy plane)
-  vec3 val = random_unit_vector();
-  return vec3(val.values[0], val.values[1], 0.);
 }
 
 #endif

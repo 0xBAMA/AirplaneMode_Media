@@ -1,10 +1,11 @@
-#include <chrono>         // timing utilities
-#include <iostream>      // text i/o
+#include <chrono>          // timing utilities
+#include <iostream>       // text i/o
 using std::cerr, std::cin, std::cout, std::endl, std::flush;
-#include <stdio.h>     // printf if needed
-#include <vector>     // std::vector
+#include <stdio.h>      // printf if needed
+#include <vector>      // std::vector
+#include <random>     // prng
 #include <string>    // std::string
-// #include <algorithm>// clamp
+#include <algorithm>// clamp
 #include <thread>  // threads
 #include <memory> // shared_ptr
 
@@ -23,16 +24,85 @@ using std::cerr, std::cin, std::cout, std::endl, std::flush;
 #define X_IMAGE_DIM 1920/4
 #define Y_IMAGE_DIM 1080/4
 #define MAX_BOUNCES 1
-#define NUM_SAMPLES 4
-#define NUM_THREADS 8
+#define NUM_SAMPLES 1
+#define NUM_THREADS 16
 #define IMAGE_GAMMA 2.2
 #define FIELDO_VIEW 1.0
 #define HIT_EPSILON base_type(std::numeric_limits<base_type>::epsilon())
 #define DMAX_TRAVEL base_type(std::numeric_limits<base_type>::max())
 
 
-// todo : prng utilities
+// pi define
+#define PI 3.1415926535897932384626433832795
 
+// default types
+#define base_type double
+using vec2 = vector2<base_type>;
+using vec3 = vector3<base_type>;
+
+// ray representation (origin+direction)
+struct ray{
+  vec3 origin;
+  vec3 direction;
+};
+
+// represents a ray hit and the associated information
+struct hitrecord {                // hit record
+    vec3 position;               // position
+    vec3 normal;                // normal
+    base_type dtransit = DMAX_TRAVEL; // how far the ray traveled, initially very large
+    int material_index = 0;          // material (indexed into scene list)
+    vec2 uv;                        // used for triangles, barycentric coords
+    bool front;                    // hit on frontfacing side
+};
+
+
+// Random Vector Utilities
+
+// Wang hash - Thomas Wang - used to seed the PRNG
+// https://burtleburtle.net/bob/hash/integer.html
+static uint wang_hash(){
+  static uint seed = 0;
+  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
+  seed *= uint(9);
+  seed = seed ^ (seed >> 4);
+  seed *= uint(0x27d4eb2d);
+  seed = seed ^ (seed >> 15);
+  return seed;
+}
+// static base_type rng() { // random value 0.-1. from wang hash
+//   return base_type(wang_hash()) / 4294967296.0;
+// }
+
+base_type rng(std::shared_ptr<std::mt19937_64> gen){ // gives a value in the range 0.-1.
+  std::uniform_real_distribution<base_type> distribution(0., 1.);
+  return distribution(*gen);
+}
+vec3 random_unit_vector(std::shared_ptr<std::mt19937_64> gen){ // random direction vector (unit length)
+  base_type z = rng(gen) * 2.0f - 1.0f;
+  base_type a = rng(gen) * 2. * PI;
+  base_type r = sqrt(1.0f - z * z);
+  base_type x = r * cos(a);
+  base_type y = r * sin(a);
+  return vec3(x, y, z);
+}
+vec3 random_in_unit_disk(std::shared_ptr<std::mt19937_64> gen){ // random in unit disk (xy plane)
+  vec3 val = random_unit_vector(gen);
+  return vec3(val.values[0], val.values[1], 0.);
+}
+
+void tonemap_and_gamma(vec3& in){
+  in *= 0.6f; // function to tonemap color value in place
+  base_type a = 2.51f;
+  base_type b = 0.03f;
+  base_type c = 2.43f;
+  base_type d = 0.59f;
+  base_type e = 0.14f;
+  in = (in*(a*in+vec3(b)))/(in*(c*in+vec3(d))+e);
+  in.values[0] = std::pow(std::clamp(in.values[0], 0., 1.), 1./IMAGE_GAMMA);
+  in.values[1] = std::pow(std::clamp(in.values[1], 0., 1.), 1./IMAGE_GAMMA);
+  in.values[2] = std::pow(std::clamp(in.values[2], 0., 1.), 1./IMAGE_GAMMA);
+}
 
 class primitive { // base class for primitives
 public:
@@ -45,7 +115,7 @@ class sphere : public primitive {
 public:
   sphere(vec3 c, base_type r, int m) : center(c), radius(r) {material_index = m;}
   hitrecord intersect(ray r) const override {
-    hitrecord h;   h.material_index = material_index;   h.dtransit = DMAX;
+    hitrecord h;   h.material_index = material_index;   h.dtransit = DMAX_TRAVEL;
     vec3 disp = r.origin - center;
     base_type b = dot(r.direction, disp);
     base_type c = dot(disp, disp) - radius*radius;
@@ -68,13 +138,12 @@ class triangle : public primitive {
 public:
   triangle(vec3 p0, vec3 p1, vec3 p2, int m) : points{p0, p1, p2} {material_index = m;}
   hitrecord intersect(ray r) const override { // Möller–Trumbore intersection algorithm
-    hitrecord hit;  hit.material_index = material_index;  hit.dtransit = DMAX;
+    hitrecord hit;  hit.material_index = material_index;  hit.dtransit = DMAX_TRAVEL;
     const vec3 edge1 = points[1] - points[0];
     const vec3 edge2 = points[2] - points[0];
     const vec3 pvec = cross(r.direction, edge2);
     const base_type det = dot(edge1, pvec);
-    static const base_type eps = std::numeric_limits<base_type>::epsilon();
-    if (det > -eps && det < eps)
+    if (det > -HIT_EPSILON && det < HIT_EPSILON)
       return hit; // no hit, return
 
     const base_type invDet = 1.0f / det;
@@ -125,48 +194,67 @@ private:
 };
 
 
-//   scene as primitive list + material list + camera container
+class scene{ // scene as primitive list + material list container
+public:
+  scene() { }
+  void clear() { contents.clear(); }
+  void populate(){
 
+  }
+  // hitrecord ray_query(ray r) const {
+  //
+  // }
+  std::vector<std::shared_ptr<primitive>> contents; // list of primitives making up the scene
+  // std::vector<std::shared_ptr<material>> materials; // list of materials present in the scene
+};
 
 class renderer{
 public:
-  renderer() { bytes.resize(xdim*ydim*4, 0); /*s.populate();*/ rng_seed();}
+  renderer() { bytes.resize(xdim*ydim*4, 0); s.populate(); rng_seed();}
   void render_and_save_to(std::string filename){
-    // vec3 from, at, up; s.c.lookat((from = vec3(0., 0., 2.)), (at = vec3(0.)), (up = vec3(0.,1.,0.)));
-    std::thread threads[NUM_THREADS];                          // create thread pool
-    for (int id = 0; id < NUM_THREADS; id++){                 // do work
+    vec3 from, at, up; c.lookat((from = vec3(0., 0., 2.)), (at = vec3(0.)), (up = vec3(0.,1.,0.)));
+    std::thread threads[NUM_THREADS];                 // create thread pool
+    for (int id = 0; id < NUM_THREADS; id++){        // do work
       threads[id] = std::thread(
         [this, id]() {
           for (int y = id; y < this->ydim; y+=NUM_THREADS)
           for (int x =  0; x < this->xdim; x++) {
-            vec3 running_color = vec3(0.);               // initially zero, averages sample data
-            // for (int s = 0; s < nsamples; s++)       // get sample data
-              // running_color += get_color_sample(x,y);
+            vec3 running_color = vec3(0.);      // initially zero, averages sample data
+            for (int s = 0; s < nsamples; s++) // get sample data (n samples)
+              running_color += get_pathtrace_color_sample(x,y,id);
             running_color /= base_type(nsamples);  // sample averaging
-            // running_color = tonemap(running_color);  // tonemapping
-            write(running_color, vec2(x,y));        // write final output values
+            tonemap_and_gamma(running_color);     // tonemapping + gamma
+            write(running_color, vec2(x,y));     // write final output values
           }
         }
       );
     }
     for (int id = 0; id < NUM_THREADS; id++)
       threads[id].join();
-    // use stb_image_write to write out image
+    cout << "Writing with filename " << filename << endl;
+    stbi_write_png(filename.c_str(), xdim, ydim, 4, &bytes[0], xdim * 4);
   }
 private:
+  camera c; // generates view rays
+  scene s; // holds all scene geometry + their associated materials
   int xdim=X_IMAGE_DIM, ydim=Y_IMAGE_DIM, nsamples=NUM_SAMPLES, bmax=MAX_BOUNCES;
-  // scene s; // holds all scene geometry, their associated materials, and the camera model
-  std::vector<std::default_random_engine> gen; // PRNG states per thread
+  std::vector<unsigned char> bytes;  // image buffer for stb_image_write
+  std::vector<std::shared_ptr<std::mt19937_64>> gen; // PRNG states per thread
   void rng_seed(){
-    gen.resize(NUM_THREADS);
-    for(int i = 0; i < NUM_THREADS; i++)
-      gen[i].seed(wang_hash());
+    std::random_device r;
+    for(int i = 0; i < NUM_THREADS; i++){
+      std::seed_seq s{r(), r(), r(), r(), r(), r(), r(), r(), r()};
+      gen.push_back(std::make_shared<std::mt19937_64>(s));
+    }
   }
-  std::vector<unsigned char> bytes;
-  void write(vec3 col, vec2 loc){ // applies gamma correction and writes to image buffer
-    const int index = 0;
+  vec3 get_pathtrace_color_sample(const int x, const int y, const int id){
+    return vec3(x/base_type(X_IMAGE_DIM), y/base_type(Y_IMAGE_DIM), rng(gen[id]));
+    // return vec3(x/base_type(X_IMAGE_DIM), y/base_type(Y_IMAGE_DIM), 0.);
+  }
+  void write(vec3 col, vec2 loc){ // writes to image buffer
+    const int index = 4.*(loc.values[1]*xdim+loc.values[0]);
     for(int c = 0; c < 4; c++)
-      bytes[index+c] = std::pow(col.values[c], 1./IMAGE_GAMMA) * 255.;
+      bytes[index+c] = (c == 3) ? 255 : col.values[c] * 255.;
   }
 };
 
