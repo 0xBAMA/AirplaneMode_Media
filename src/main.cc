@@ -193,11 +193,26 @@ public:
   scene() { }
   void clear() { contents.clear(); }
   void populate(){
-
+    std::random_device r;
+    std::seed_seq s{r(), r(), r(), r(), r(), r(), r(), r(), r()};
+    auto gen = std::make_shared<std::mt19937_64>(s);
+    for (int i = 0; i < 600; i++){
+      contents.push_back(std::make_shared<sphere>(2.*vec3(rng(gen)-0.5, rng(gen)-0.5, rng(gen)-0.5), 0.1*rng(gen), 0));
+      contents.push_back(std::make_shared<triangle>(2.*vec3(rng(gen)-0.5,rng(gen)-0.5,rng(gen)-0.5), 2.*vec3(rng(gen)-0.5,rng(gen)-0.5,rng(gen)-0.5), 2.*vec3(rng(gen)-0.5,rng(gen)-0.5,rng(gen)-0.5), 1));
+    }
   }
-  // hitrecord ray_query(ray r) const {
-  //
-  // }
+  hitrecord ray_query(ray r) const {
+    hitrecord h; // iterate through primitives and check for nearest intersection
+    base_type current_min = DMAX_TRAVEL; // initially 'a big number'
+    for(int i = 0; i < contents.size(); i++) {
+      hitrecord temp = contents[i]->intersect(r);
+      if(temp.dtransit < DMAX_TRAVEL && temp.dtransit > 0. && temp.dtransit < current_min) {
+        current_min = temp.dtransit;
+        h = temp;
+      }
+    }
+    return h;
+  }
   std::vector<std::shared_ptr<primitive>> contents; // list of primitives making up the scene
   // std::vector<std::shared_ptr<material>> materials; // list of materials present in the scene
 };
