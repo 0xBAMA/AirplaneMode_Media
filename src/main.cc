@@ -20,25 +20,23 @@ using std::cerr, std::cin, std::cout, std::endl, std::flush;
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-// render parameters
-#define X_IMAGE_DIM 1920/4
-#define Y_IMAGE_DIM 1080/4
-#define MAX_BOUNCES 1
-#define NUM_SAMPLES 1
-#define NUM_THREADS 16
-#define IMAGE_GAMMA 2.2
-#define FIELDO_VIEW 1.0
-#define HIT_EPSILON base_type(std::numeric_limits<base_type>::epsilon())
-#define DMAX_TRAVEL base_type(std::numeric_limits<base_type>::max())
-
-
-// pi define
-#define PI 3.1415926535897932384626433832795
-
 // default types
 #define base_type double
 using vec2 = vector2<base_type>;
 using vec3 = vector3<base_type>;
+
+constexpr double pi = 3.1415926535897932384626433832795;
+
+// render parameters
+constexpr int       X_IMAGE_DIM = 1920/4;
+constexpr int       Y_IMAGE_DIM = 1080/4;
+constexpr int       MAX_BOUNCES = 1;
+constexpr int       NUM_SAMPLES = 1;
+constexpr int       NUM_THREADS = 16;
+constexpr base_type IMAGE_GAMMA = 2.2;
+constexpr base_type FIELDO_VIEW = 1.0;
+constexpr base_type HIT_EPSILON = base_type(std::numeric_limits<base_type>::epsilon());
+constexpr base_type DMAX_TRAVEL = base_type(std::numeric_limits<base_type>::max());
 
 // ray representation (origin+direction)
 struct ray{
@@ -57,8 +55,6 @@ struct hitrecord {                // hit record
 };
 
 
-// Random Vector Utilities
-
 // Wang hash - Thomas Wang - used to seed the PRNG
 // https://burtleburtle.net/bob/hash/integer.html
 static uint wang_hash(){
@@ -70,17 +66,15 @@ static uint wang_hash(){
   seed = seed ^ (seed >> 15);
   return seed;
 }
-// static base_type rng() { // random value 0.-1. from wang hash
-//   return base_type(wang_hash()) / 4294967296.0;
-// }
 
+// Random Utilities
 base_type rng(std::shared_ptr<std::mt19937_64> gen){ // gives a value in the range 0.-1.
   std::uniform_real_distribution<base_type> distribution(0., 1.);
   return distribution(*gen);
 }
 vec3 random_unit_vector(std::shared_ptr<std::mt19937_64> gen){ // random direction vector (unit length)
   base_type z = rng(gen) * 2.0f - 1.0f;
-  base_type a = rng(gen) * 2. * PI;
+  base_type a = rng(gen) * 2. * pi;
   base_type r = sqrt(1.0f - z * z);
   base_type x = r * cos(a);
   base_type y = r * sin(a);
@@ -248,8 +242,12 @@ private:
     }
   }
   vec3 get_pathtrace_color_sample(const int x, const int y, const int id){
-    return vec3(x/base_type(X_IMAGE_DIM), y/base_type(Y_IMAGE_DIM), rng(gen[id]));
-    // return vec3(x/base_type(X_IMAGE_DIM), y/base_type(Y_IMAGE_DIM), 0.);
+    vec3 current = vec3(0.);
+
+    // this is where the bouncing happens
+    // return vec3(x/base_type(X_IMAGE_DIM), y/base_type(Y_IMAGE_DIM), rng(gen[id]));
+
+    return current;
   }
   void write(vec3 col, vec2 loc){ // writes to image buffer
     const int index = 4.*(loc.values[1]*xdim+loc.values[0]);
