@@ -28,13 +28,14 @@ using vec3 = vector3<base_type>;
 // render parameters
 constexpr int       X_IMAGE_DIM = 1920/4;
 constexpr int       Y_IMAGE_DIM = 1080/4;
-constexpr int       MAX_BOUNCES = 6;
-constexpr int       NUM_SAMPLES = 16;
-constexpr int       NUM_THREADS = 8;
+constexpr int       MAX_BOUNCES = 32;
+constexpr int       NUM_SAMPLES = 200;
+constexpr int       NUM_THREADS = 4;
 constexpr base_type IMAGE_GAMMA = 2.2;
-constexpr base_type FIELD_OF_VIEW = 1.0;
 constexpr base_type HIT_EPSILON = base_type(std::numeric_limits<base_type>::epsilon());
 constexpr base_type DMAX_TRAVEL = base_type(std::numeric_limits<base_type>::max())/10.;
+constexpr base_type FIELD_OF_VIEW = 0.518;
+constexpr int       NUM_PRIMITIVES = 65;
 
 // ray representation (origin+direction)
 struct ray{
@@ -47,7 +48,7 @@ struct hitrecord {                // hit record
     vec3 position;               // position
     vec3 normal;                // normal
     base_type dtransit = DMAX_TRAVEL; // how far the ray traveled, initially very large
-    int material_index = 0;          // material (indexed into scene list)
+    int material_index = -1;         // material (indexed into scene list)
     vec2 uv;                        // used for triangles, barycentric coords
     bool front;                    // hit on frontfacing side
 };
@@ -63,6 +64,9 @@ inline uint32_t wang_hash(uint32_t x){
 base_type rng(std::shared_ptr<std::mt19937_64> gen){ // gives a value in the range 0.-1.
   std::uniform_real_distribution<base_type> distribution(0., 1.);
   return distribution(*gen);
+}
+vec3 random_vector(std::shared_ptr<std::mt19937_64> gen){ // random vector centered around 0.
+  return vec3(rng(gen), rng(gen), rng(gen)) - vec3(0.5);
 }
 vec3 random_unit_vector(std::shared_ptr<std::mt19937_64> gen){ // random direction vector (unit length)
   base_type z = rng(gen) * 2.0f - 1.0f;
@@ -94,11 +98,14 @@ public:
     base_type c = dot(disp, disp) - radius*radius;
     base_type des = b * b - c; // b squared minus c - discriminant of the quadratic
     if(des >= 0){ // hit at either one or two points
-      h.dtransit = std::min( -b + std::sqrt(des), -b - std::sqrt(des) );
-      h.material_index = material_index;
-      h.position = r.origin + h.dtransit * r.direction;
-      h.normal = normalize(h.position - center);
-      h.front = true;
+      base_type d = std::min(std::max(-b+std::sqrt(des), 0.), std::max(-b-std::sqrt(des), 0.));
+      if(d > 0.){ // make sure at least one intersection point is in front of the camera before continuing
+        h.dtransit = d;
+        h.material_index = material_index;
+        h.position = r.origin + h.dtransit * r.direction;
+        h.normal = normalize(h.position - center);
+        h.front = dot(h.normal, r.direction) < 0. ? true : false;
+      }
     }
     return h;
   }
@@ -135,7 +142,7 @@ public:
     hit.position = points[0] + hit.uv.values[0] * edge2 + hit.uv.values[1] * edge1;
     hit.normal = cross(edge1, edge2);
     hit.material_index = material_index;
-    hit.front = dot(hit.normal, r.direction) > 0 ? true : false; // determine front or back
+    hit.front = dot(hit.normal, r.direction) < 0. ? true : false; // determine front or back
 
     return hit; // return true result with all relevant info
   }
@@ -179,10 +186,17 @@ public:
     std::random_device r;
     std::seed_seq s{r(), r(), r(), r(), r(), r(), r(), r(), r()};
     auto gen = std::make_shared<std::mt19937_64>(s);
-    for (int i = 0; i < 60; i++){
-      contents.push_back(std::make_shared<sphere>(2.*vec3(rng(gen)-0.5, rng(gen)-0.5, rng(gen)-0.5), 0.1*rng(gen), 0));
-      contents.push_back(std::make_shared<triangle>(2.*vec3(rng(gen)-0.5,rng(gen)-0.5,rng(gen)-0.5), 2.*vec3(rng(gen)-0.5,rng(gen)-0.5,rng(gen)-0.5), 2.*vec3(rng(gen)-0.5,rng(gen)-0.5,rng(gen)-0.5), 1));
+    // for (int i = 0; i < 7; i++)
+      // contents.push_back(std::make_shared<sphere>(0.8*random_vector(gen), 0.03*rng(gen), 0));
+    for (int i = 0; i < NUM_PRIMITIVES; i++){
+      base_type yval = ((base_type(i) / NUM_PRIMITIVES) - 0.5)* 1.9;
+      vec3 p1 = vec3(std::cos(yval*6.5), std::sin(yval*14.0), yval*3.14);
+      vec3 p2 = vec3(std::cos(yval*9.7)+0.1, std::sin(yval*16.4)+0.7, yval);
+      vec3 p3 = vec3(std::cos(yval*15.8)-0.3, std::sin(yval*19.2)+0.1, yval+0.3*rng(gen));
+      contents.push_back(std::make_shared<triangle>(p1, p2, p3, 1));
+      contents.push_back(std::make_shared<sphere>(p3, 0.1*rng(gen), 0));
     }
+    contents.push_back(std::make_shared<sphere>(random_vector(gen), 1.4*rng(gen), 0));
   }
   hitrecord ray_query(ray r) const {
     hitrecord h; // iterate through primitives and check for nearest intersection
@@ -204,7 +218,8 @@ class renderer{
 public:
   renderer() { bytes.resize(xdim*ydim*4, 0); s.populate(); rng_seed();}
   void render_and_save_to(std::string filename){
-    c.lookat(vec3(0., 0., 2.), vec3(0.), vec3(0.,1.,0.));
+    // c.lookat(vec3(0., 0., 2.), vec3(0.), vec3(0.,1.,0.));
+    c.lookat(random_unit_vector(gen[0])*(2.2+rng(gen[0])), vec3(0.), vec3(0.,1.,0.));
     std::thread threads[NUM_THREADS];                 // create thread pool
     for (int id = 0; id < NUM_THREADS; id++){        // do work
       threads[id] = std::thread(
@@ -256,25 +271,41 @@ private:
     // capable of carrying all of the light intensity possible (100%), and it is reduced
     vec3 throughput = vec3(1.); // by the albedo of the material on each bounce
     vec3 current    = vec3(0.); // init to zero - initially no light present
-    vec3 old_ro, ro, rd; // old_ro holds previous hit location, unitialized
+    vec3 old_ro; // old_ro holds previous hit location, unitialized
 
     // get initial ray origin + ray direction from camera
-    ray r = c.sample(vec2(x+rng(gen[id]),y+rng(gen[id])));  ro = r.origin;  rd = r.direction;
-
+    ray r = c.sample(vec2(x+rng(gen[id]),y+rng(gen[id])));
     for (int bounce = 0; bounce < MAX_BOUNCES; bounce++){
-      old_ro = ro; // cache old hit locaDMAXtion
-      hitrecord h = s.ray_query(ray{ro, rd}); // get a new hit location (scene query)
-      // 0 material is emissive
-      // 1 material is diffuse
-      if(h.dtransit < DMAX_TRAVEL && h.material_index == 0)
-        current = vec3(h.normal*0.5 + vec3(0.5)) * (2./h.dtransit);
-      if(h.dtransit < DMAX_TRAVEL && h.material_index == 1)
-        current = (h.front ? vec3(0.618) : vec3(0.1618))*(2./h.dtransit);
+      old_ro = r.origin; // cache old hit location
+      hitrecord h = s.ray_query(r); // get a new hit location (scene query)
+
+      r.origin = r.origin + h.dtransit*r.direction + h.normal*HIT_EPSILON;
+      r.direction = normalize((1.+HIT_EPSILON)*h.normal + random_unit_vector(gen[id])); // diffuse reflection
+
+      // the form is:
+        // current    += throughput*current_emission // emission term
+        // throughput *= albedo                     // diffuse absorption term
+
+      if(h.material_index == 0){ // the spheres
+        // current += throughput * vec3(44.);
+        throughput *= vec3(0.999);
+      } else if(h.material_index == 1 && h.front){ // the triangles
+        throughput *= vec3(0.999);
+      } else if(h.material_index == 1 && !h.front){
+        current += throughput * vec3(h.uv.values[0], h.uv.values[1], 1-h.uv.values[0]-h.uv.values[1]);
+      } else if(h.dtransit == DMAX_TRAVEL){
+        current += throughput * 0.1 * vec3(0.918, 0.75, 0.6); // sky color and escape
+        break; // escape
+      }
+
+      base_type p = std::max(throughput.values[0], std::max(throughput.values[1], throughput.values[2]));
+      if(rng(gen[id]) > p) // russian roulette termination check
+        break;
+
+      throughput *= 1./p; // russian roulette compensation term
 
     }
     return current;
-    // return vec3(x/base_type(X_IMAGE_DIM), y/base_type(Y_IMAGE_DIM), rng(gen[id]));
-    // return vec3(rng(gen[id]));
   }
   void write(vec3 col, vec2 loc){ // writes to image buffer
     const int index = 4.*(loc.values[1]*xdim+loc.values[0]);
