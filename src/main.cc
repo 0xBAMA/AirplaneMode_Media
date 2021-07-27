@@ -1,13 +1,20 @@
 #include <chrono>          // timing utilities
 #include <iostream>       // text i/o
+#include <iomanip>
 using std::cerr, std::cin, std::cout, std::endl, std::flush;
 #include <stdio.h>      // printf if needed
 #include <vector>      // std::vector
 #include <random>     // prng
 #include <string>    // std::string
-#include <algorithm>// clamp
+#include <sstream>    // std::stringstream
+#include <algorithm> // clamp
+#include <atomic>   // atomic_llong
 #include <thread>  // threads
 #include <memory> // shared_ptr
+
+// todo:
+  // cleanup the handling of thread state
+  // more extensive performance report on completion (samples/second, resolution, bounces, etc)
 
 // my vector library
 #include "AMvector.h"
@@ -26,16 +33,24 @@ using vec2 = vector2<base_type>;
 using vec3 = vector3<base_type>;
 
 // render parameters
-constexpr int       X_IMAGE_DIM = 1920/4;
-constexpr int       Y_IMAGE_DIM = 1080/4;
-constexpr int       MAX_BOUNCES = 32;
-constexpr int       NUM_SAMPLES = 200;
-constexpr int       NUM_THREADS = 4;
+constexpr long long X_IMAGE_DIM = 1920/2;
+constexpr long long Y_IMAGE_DIM = 1080/2;
+constexpr long long TILESIZE_XY = 8;
+constexpr long long MAX_BOUNCES = 69;
+constexpr long long NUM_SAMPLES = 420;
+constexpr long long NUM_THREADS = 4;
 constexpr base_type IMAGE_GAMMA = 2.2;
 constexpr base_type HIT_EPSILON = base_type(std::numeric_limits<base_type>::epsilon());
 constexpr base_type DMAX_TRAVEL = base_type(std::numeric_limits<base_type>::max())/10.;
-constexpr base_type FIELD_OF_VIEW = 0.518;
-constexpr int       NUM_PRIMITIVES = 65;
+constexpr base_type FIELD_OF_VIEW = 0.69420;
+constexpr base_type PALETTE_SCALAR = 16.18;
+constexpr base_type BRIGHTNESS_SCALAR = 16.18;
+constexpr long long REPORT_DELAY = 618; // reporter thread sleep duration, in ms
+constexpr long long NUM_PRIMITIVES = 69;
+constexpr long long PROGRESS_INDICATOR_STOPS = 69; // cli spaces to take up
+
+
+
 
 // ray representation (origin+direction)
 struct ray{
@@ -49,8 +64,9 @@ struct hitrecord {                // hit record
     vec3 normal;                // normal
     base_type dtransit = DMAX_TRAVEL; // how far the ray traveled, initially very large
     int material_index = -1;         // material (indexed into scene list)
-    vec2 uv;                        // used for triangles, barycentric coords
-    bool front;                    // hit on frontfacing side
+    int primitive_index = 0;        // so you can refer to the values for this primitive later
+    vec2 uv;                       // used for triangles, barycentric coords
+    bool front;                   // hit on frontfacing side
 };
 
 inline uint32_t wang_hash(uint32_t x){
@@ -81,12 +97,17 @@ vec3 random_in_unit_disk(std::shared_ptr<std::mt19937_64> gen){ // random in uni
   return vec3(val.values[0], val.values[1], 0.);
 }
 
+// iq style palette
+vec3 palette( base_type t, vec3 a=vec3(0.5,0.5,0.5), vec3 b=vec3(0.5,0.5,0.5), vec3 c=vec3(1.0,1.0,1.0), vec3 d=vec3(0.00, 0.33, 0.67) ){
+  vec3 temp = (c * t + d) * 2. * pi;
+  return a + b * vec3(cos(temp.values[0]), cos(temp.values[1]), cos(temp.values[2]));
+}
+
 class primitive { // base class for primitives
 public:
   virtual hitrecord intersect(ray r) const = 0; // pure virtual, base definition dne
   int material_index; // indexes into scene material list
 };
-
 // sphere
 class sphere : public primitive {
 public:
@@ -113,7 +134,6 @@ private:  // geometry parameters
   vec3 center;
   base_type radius;
 };
-
 // triangle
 class triangle : public primitive {
 public:
@@ -150,7 +170,11 @@ private:  // geometry parameters
   vec3 points[3];
 };
 
+
+
 //   todo : material handling
+
+
 
 class camera{ // camera class generates view vectors from a set of basis vectors
 public:
@@ -178,6 +202,7 @@ private:
   base_type FoV = FIELD_OF_VIEW; // field of view
 };
 
+
 class scene{ // scene as primitive list + material list container
 public:
   scene() { }
@@ -189,20 +214,19 @@ public:
     // for (int i = 0; i < 7; i++)
       // contents.push_back(std::make_shared<sphere>(0.8*random_vector(gen), 0.03*rng(gen), 0));
     for (int i = 0; i < NUM_PRIMITIVES; i++){
-      base_type yval = ((base_type(i) / NUM_PRIMITIVES) - 0.5)* 1.9;
+      base_type yval = ((base_type(i) / NUM_PRIMITIVES) - 0.5)* 2.;
       vec3 p1 = vec3(std::cos(yval*6.5), std::sin(yval*14.0), yval*3.14);
       vec3 p2 = vec3(std::cos(yval*9.7)+0.1, std::sin(yval*16.4)+0.7, yval);
-      vec3 p3 = vec3(std::cos(yval*15.8)-0.3, std::sin(yval*19.2)+0.1, yval+0.3*rng(gen));
-      contents.push_back(std::make_shared<triangle>(p1, p2, p3, 1));
-      contents.push_back(std::make_shared<sphere>(p3, 0.1*rng(gen), 0));
+      vec3 p3 = vec3(std::cos(yval*15.8)-0.3, std::sin(yval*19.2)+0.1, yval+0.3*rng(gen))+random_vector(gen)*0.04;
+      contents.push_back(std::make_shared<triangle>(p1, p2, rng(gen) < 0.1 ? random_vector(gen) : p3, rng(gen) < 0.1 ? 1 : 3));
+      contents.push_back(std::make_shared<sphere>(random_vector(gen), 0.4*rng(gen), rng(gen) < 0.4 ? 0 : 2));
     }
-    contents.push_back(std::make_shared<sphere>(random_vector(gen), 1.4*rng(gen), 0));
   }
   hitrecord ray_query(ray r) const {
     hitrecord h; // iterate through primitives and check for nearest intersection
     base_type current_min = DMAX_TRAVEL; // initially 'a big number'
     for(int i = 0; i < contents.size(); i++) {
-      hitrecord temp = contents[i]->intersect(r);
+      hitrecord temp = contents[i]->intersect(r); temp.primitive_index = i;
       if(temp.dtransit < DMAX_TRAVEL && temp.dtransit > 0. && temp.dtransit < current_min) {
         current_min = temp.dtransit;
         h = temp;
@@ -214,32 +238,89 @@ public:
   // std::vector<std::shared_ptr<material>> materials; // list of materials present in the scene
 };
 
+
 class renderer{
 public:
+  std::atomic<unsigned long long> tile_index_counter{0}; // used to get new tiles
+  std::atomic<unsigned long long> tile_finish_counter{0}; // used for status reporting
+  const unsigned long long total_tile_count = std::ceil(X_IMAGE_DIM / TILESIZE_XY) * (std::ceil(Y_IMAGE_DIM / TILESIZE_XY)+1);
+
   renderer() { bytes.resize(xdim*ydim*4, 0); s.populate(); rng_seed();}
   void render_and_save_to(std::string filename){
     // c.lookat(vec3(0., 0., 2.), vec3(0.), vec3(0.,1.,0.));
     c.lookat(random_unit_vector(gen[0])*(2.2+rng(gen[0])), vec3(0.), vec3(0.,1.,0.));
-    std::thread threads[NUM_THREADS];                 // create thread pool
-    for (int id = 0; id < NUM_THREADS; id++){        // do work
-      threads[id] = std::thread(
+    std::thread threads[NUM_THREADS+1];                 // create thread pool
+    for (int id = 0; id <= NUM_THREADS; id++){         // do work
+      threads[id] = (id == NUM_THREADS) ? std::thread(// reporter thread
         [this, id]() {
-          for (int y = id; y < this->ydim; y+=NUM_THREADS)
-          for (int x =  0; x < this->xdim; x++) {
-            vec3 running_color = vec3(0.);      // initially zero, averages sample data
-            for (int s = 0; s < nsamples; s++) // get sample data (n samples)
-              running_color += get_pathtrace_color_sample(x,y,id);
-            running_color /= base_type(nsamples);  // sample averaging
-            tonemap_and_gamma(running_color);     // tonemapping + gamma
-            write(running_color, vec2(x,y));     // write final output values
+          const auto tstart = std::chrono::high_resolution_clock::now();
+          while(true){ // report timing
+            // show status - break on 100% completion
+            cout << "\r\033[K";
+            const base_type frac = base_type(tile_finish_counter)/base_type(total_tile_count);
+
+            cout << "["; //  [=====....................] where equals shows progress
+            for(int i = 0; i <= PROGRESS_INDICATOR_STOPS*frac;    i++) cout << "=";
+            for(int i = 0; i < PROGRESS_INDICATOR_STOPS*(1-frac); i++) cout << ".";
+            cout << "]" << std::flush;
+
+            // const int tile_width_char = std::ceil(std::log10(total_tile_count));
+            // cout << " (" << std::setw(tile_width_char) << tile_finish_counter << " / " << std::setw(tile_width_char) << total_tile_count << ") " << std::flush;
+            cout << "[" << std::setw(3) << 100.*frac << "% " << std::flush;
+
+            cout << std::setw(7) << std::showpoint << std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now()-tstart).count()/1000.
+                  << " sec]" << std::flush;
+
+            if(tile_finish_counter >= total_tile_count){
+              const float seconds = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-tstart).count()/1000.;
+              const long long total_rays = X_IMAGE_DIM*Y_IMAGE_DIM*NUM_SAMPLES*MAX_BOUNCES;
+
+              cout << "\r\033[K[" << std::string(PROGRESS_INDICATOR_STOPS+1, '=')<<"] "<< seconds << " sec - total rays: " << total_rays << " (" << total_rays/seconds << "rays/sec)" << endl; break; }
+
+            // sleep for some amount of time before showing again
+            std::this_thread::sleep_for(std::chrono::milliseconds(REPORT_DELAY));
+          }
+        }
+      ) : std::thread(
+        [this, id]() {
+          // now tile based
+          while(true){
+            // solve for x and y from the index
+            unsigned long long index = tile_index_counter.fetch_add(1);
+            if(index >= total_tile_count) break;
+
+            constexpr int num_tiles_x = int(std::ceil(float(X_IMAGE_DIM)/float(TILESIZE_XY)));
+            constexpr int num_tiles_y = int(std::ceil(float(Y_IMAGE_DIM)/float(TILESIZE_XY)));
+
+            const int tile_x_index = index % num_tiles_x;
+            const int tile_y_index = (index / num_tiles_x);
+
+            const int tile_base_x = tile_x_index*TILESIZE_XY;
+            const int tile_base_y = tile_y_index*TILESIZE_XY;
+
+            for (int y = tile_base_y; y < tile_base_y+TILESIZE_XY; y++)
+            for (int x = tile_base_x; x < tile_base_x+TILESIZE_XY; x++) {
+              vec3 running_color = vec3(0.);      // initially zero, averages sample data
+              for (int s = 0; s < nsamples; s++) // get sample data (n samples)
+                running_color += get_pathtrace_color_sample(x,y,id);
+              running_color /= base_type(nsamples);  // sample averaging
+              tonemap_and_gamma(running_color);     // tonemapping + gamma
+              write(running_color, vec2(x,y));     // write final output values
+            }
+
+            tile_finish_counter.fetch_add(1);
           }
         }
       );
     }
-    for (int id = 0; id < NUM_THREADS; id++)
+    for (int id = 0; id <= NUM_THREADS; id++)
       threads[id].join();
-    cout << "Writing with filename " << filename << endl;
+    cout << "Writing \'" << filename << "\'";
+    const auto tistart = std::chrono::high_resolution_clock::now();
     stbi_write_png(filename.c_str(), xdim, ydim, 4, &bytes[0], xdim * 4);
+    cout << " - " << std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::high_resolution_clock::now()-tistart).count()/1000. << " seconds" << endl;
   }
 private:
   camera c; // generates view rays
@@ -261,8 +342,8 @@ private:
     base_type c = 2.43f;
     base_type d = 0.59f;
     base_type e = 0.14f;
-    in = (in*(a*in+vec3(b)))/(in*(c*in+vec3(d))+e);
-    in.values[0] = std::pow(std::clamp(in.values[0], 0., 1.), 1./IMAGE_GAMMA);
+    in = (in*(a*in+vec3(b)))/(in*(c*in+vec3(d))+e); // tonemap
+    in.values[0] = std::pow(std::clamp(in.values[0], 0., 1.), 1./IMAGE_GAMMA); // gamma correct
     in.values[1] = std::pow(std::clamp(in.values[1], 0., 1.), 1./IMAGE_GAMMA);
     in.values[2] = std::pow(std::clamp(in.values[2], 0., 1.), 1./IMAGE_GAMMA);
   }
@@ -287,14 +368,20 @@ private:
         // throughput *= albedo                     // diffuse absorption term
 
       if(h.material_index == 0){ // the spheres
-        // current += throughput * vec3(44.);
-        throughput *= vec3(0.999);
-      } else if(h.material_index == 1 && h.front){ // the triangles
-        throughput *= vec3(0.999);
+        // current += throughput * vec3(1.3, 1.2, 1.1);
+        // throughput *= vec3(0.999);
+        throughput *= palette(h.primitive_index*PALETTE_SCALAR);
+      } else if(h.material_index == 1 && h.front){
+        current += throughput * BRIGHTNESS_SCALAR * vec3(h.uv.values[0], h.uv.values[1], 1-h.uv.values[0]-h.uv.values[1]);
       } else if(h.material_index == 1 && !h.front){
-        current += throughput * vec3(h.uv.values[0], h.uv.values[1], 1-h.uv.values[0]-h.uv.values[1]);
+        current += throughput * (palette(h.primitive_index*PALETTE_SCALAR)*BRIGHTNESS_SCALAR);
+      } else if(h.material_index == 2){
+        r.direction = reflect(r.origin-old_ro, h.normal);
+        throughput *= vec3(0.89);
+      } else if(h.material_index == 3){
+        throughput *= vec3(0.999);
       } else if(h.dtransit == DMAX_TRAVEL){
-        current += throughput * 0.1 * vec3(0.918, 0.75, 0.6); // sky color and escape
+        // current += throughput * 0.1 * vec3(0.918, 0.75, 0.6); // sky color and escape
         break; // escape
       }
 
@@ -308,6 +395,8 @@ private:
     return current;
   }
   void write(vec3 col, vec2 loc){ // writes to image buffer
+    if(loc.values[0] < 0 || loc.values[0] >= X_IMAGE_DIM) return;
+    if(loc.values[1] < 0 || loc.values[1] >= Y_IMAGE_DIM) return;
     const int index = 4.*(loc.values[1]*xdim+loc.values[0]);
     for(int c = 0; c < 4; c++)
       bytes[index+c] = (c == 3) ? 255 : col.values[c] * 255.;
@@ -316,9 +405,14 @@ private:
 
 int main(int argc, char const *argv[]){
   std::string filename = std::string(argv[1]); // from CLI
-  auto tstart = std::chrono::high_resolution_clock::now();
+  const auto tstart = std::chrono::high_resolution_clock::now();
 
-  renderer r; r.render_and_save_to(filename);
+  // renderer r; r.render_and_save_to(filename);
+
+  for (size_t i = 72; i <= 100; i++) {
+    std::stringstream s; s << "outputs/out" << i << ".png";
+    renderer r; r.render_and_save_to(s.str());
+  }
 
   cout << "Total Render Time: " <<
     std::chrono::duration_cast<std::chrono::milliseconds>(

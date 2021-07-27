@@ -132,4 +132,9 @@ const vector3<T> cross(vector3<T> a, vector3<T> b) {
   return product;
 }
 
+template <class T> // reflect function
+const vector3<T> reflect(vector3<T> i, vector3<T> n){
+   return i - 2.0 * dot(n, i) * n;
+}
+
 #endif
